@@ -103,6 +103,9 @@ DriverEntry(
     WDF_DRIVER_CONFIG config;
     NTSTATUS status;
     WDF_OBJECT_ATTRIBUTES attributes;
+
+    ExInitializeDriverRuntime(DrvRtPoolNxOptIn);
+
     //
     // Setup standard logging state for this driver.
     //
