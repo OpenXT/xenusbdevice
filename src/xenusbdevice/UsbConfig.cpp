@@ -1784,75 +1784,74 @@ GetString(
     AcquireFdoLock(fdoContext);
     do
     {
-
-        USHORT ActualLength;
+        TraceEvents(TRACE_LEVEL_INFORMATION, TRACE_DEVICE,
+                    __FUNCTION__": GetDescriptor requesting string of length 255 (0xff)\n");
 
         NTSTATUS Status = GetDescriptor(
-                              fdoContext,
-                              &fdoContext->ScratchPad.Packet,
-                              USB_STRING_DESCRIPTOR_TYPE,
-                              BMREQUEST_TO_DEVICE,
-                              index,
-                              fdoContext->LangId,
-                              4,
-                              sizeof(USB_STRING));
-
-        if (!NT_SUCCESS(Status))
-        {
-            TraceEvents(TRACE_LEVEL_ERROR, TRACE_DEVICE,
-                        __FUNCTION__": GetDescriptor length probe failed %x\n",
-                        Status);
-            ExFreePool(uString);
-            uString = NULL;
-            break;
-        }
-
-        ActualLength = (USHORT) ((PUCHAR)fdoContext->ScratchPad.Buffer)[0];
-        TraceEvents(TRACE_LEVEL_INFORMATION, TRACE_DEVICE,
-                    __FUNCTION__": GetDescriptor requesting string of length %d (0x%x)\n",
-                    ActualLength, ActualLength);
-
-        Status = GetDescriptor(
                      fdoContext,
                      &fdoContext->ScratchPad.Packet,
                      USB_STRING_DESCRIPTOR_TYPE,
                      BMREQUEST_TO_DEVICE,
                      index,
                      fdoContext->LangId,
-                     ActualLength,
+                     0xff,
                      sizeof(USB_STRING));
 
         if (!NT_SUCCESS(Status))
         {
-            TraceEvents(TRACE_LEVEL_WARNING, TRACE_DEVICE,
-                        __FUNCTION__": %s actual length %d GetDescriptor failed %x\n",
+            // Read of max length 255 failed, attempt the read from the actual length of the field
+            TraceEvents(TRACE_LEVEL_ERROR, TRACE_DEVICE,
+                        __FUNCTION__": %s string length 255 GetDescriptor failed %x\n",
                         fdoContext->FrontEndPath,
-                        ActualLength,
                         Status);
-            //
-            // ugh. Ok try using 255. Some devices are broken.
-            // Note: some other devices are broken the other way.
-            //
-            Status = GetDescriptor(
-                         fdoContext,
-                         &fdoContext->ScratchPad.Packet,
-                         USB_STRING_DESCRIPTOR_TYPE,
-                         BMREQUEST_TO_DEVICE,
-                         index,
-                         fdoContext->LangId,
-                         0xff,
-                         sizeof(USB_STRING));
 
-            if (!NT_SUCCESS(Status))
-            {
-                TraceEvents(TRACE_LEVEL_ERROR, TRACE_DEVICE,
-                            __FUNCTION__": %s max length 255 GetDescriptor failed %x\n",
-                            fdoContext->FrontEndPath,
-                            Status);
-                ExFreePool(uString);
-                uString = NULL;
-                break;
-            }
+            Status = GetDescriptor(
+                                fdoContext,
+                                &fdoContext->ScratchPad.Packet,
+                                USB_STRING_DESCRIPTOR_TYPE,
+                                BMREQUEST_TO_DEVICE,
+                                index,
+                                fdoContext->LangId,
+                                2,
+                                sizeof(USB_STRING));
+
+          if (!NT_SUCCESS(Status))
+          {
+              TraceEvents(TRACE_LEVEL_ERROR, TRACE_DEVICE,
+                          __FUNCTION__": GetDescriptor length probe failed %x\n",
+                          Status);
+              ExFreePool(uString);
+              uString = NULL;
+              break;
+          }
+
+          USHORT Length = (USHORT) ((PUCHAR)fdoContext->ScratchPad.Buffer)[0];
+          TraceEvents(TRACE_LEVEL_INFORMATION, TRACE_DEVICE,
+                      __FUNCTION__": GetDescriptor requesting string of length %d (0x%x)\n",
+                      Length, Length);
+
+          Status = GetDescriptor(
+                       fdoContext,
+                       &fdoContext->ScratchPad.Packet,
+                       USB_STRING_DESCRIPTOR_TYPE,
+                       BMREQUEST_TO_DEVICE,
+                       index,
+                       fdoContext->LangId,
+                       Length,
+                       sizeof(USB_STRING));
+
+          if (!NT_SUCCESS(Status))
+          {
+              TraceEvents(TRACE_LEVEL_ERROR, TRACE_DEVICE,
+                              __FUNCTION__": %s actual length %d GetDescriptor failed %x\n",
+                              fdoContext->FrontEndPath,
+                              Length,
+                              Length);
+              ExFreePool(uString);
+              uString = NULL;
+              break;
+          }
+
         }
 
         if (fdoContext->ScratchPad.BytesTransferred < sizeof(USB_COMMON_DESCRIPTOR))
