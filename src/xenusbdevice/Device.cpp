@@ -740,6 +740,7 @@ XenDeconfigure(IN PUSB_FDO_CONTEXT fdoContext)
     AcquireFdoLock(fdoContext);
     if (!fdoContext->XenConfigured)
     {
+        ReleaseFdoLock(fdoContext);
         return STATUS_SUCCESS;
     }
     fdoContext->XenConfigured = FALSE;
@@ -856,7 +857,6 @@ CleanupDisconnectedDevice(
         ReleaseFdoLock(fdoContext);
         return;
     }
-    fdoContext->CtlrDisconnected = TRUE;
 
     ReleaseFdoLock(fdoContext);
     WdfTimerStop(fdoContext->WatchdogTimer, TRUE);
@@ -869,6 +869,7 @@ CleanupDisconnectedDevice(
     AcquireFdoLock(fdoContext);
 
     FdoUnplugDevice(fdoContext);
+    fdoContext->CtlrDisconnected = TRUE;
 
     BOOLEAN completeRequest = TRUE;
 
